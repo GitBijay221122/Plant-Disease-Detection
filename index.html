@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeafScan – Plant Disease Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* ============================================
+   DESIGN TOKENS
+   ============================================ */
+:root {
+  --green-900: #14532d;
+  --green-800: #166534;
+  --green-700: #15803d;
+  --green-600: #16a34a;
+  --green-100: #dcfce7;
+  --green-50:  #f0fdf4;
+  --bg:        #F9FAFB;
+  --card:      #FFFFFF;
+  --text:      #111827;
+  --muted:     #6B7280;
+  --border:    #E5E7EB;
+  --red-500:   #ef4444;
+  --red-100:   #fee2e2;
+  --amber-500: #f59e0b;
+  --amber-100: #fef3c7;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  --radius:    14px;
+  --font-display: 'DM Serif Display', serif;
+  --font-body:    'DM Sans', sans-serif;
+  --transition:   all .22s ease;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
+}
+img { max-width: 100%; display: block; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input { font-family: inherit; }
+a { text-decoration: none; color: inherit; }
+
+/* ============================================
+   PAGES
+   ============================================ */
+.page { display: none; min-height: 100vh; }
+.page.active { display: block; }
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  transition: var(--transition); cursor: pointer; border: none;
+  font-family: var(--font-body);
+}
+.btn-primary {
+  background: var(--green-800); color: #fff;
+}
+.btn-primary:hover { background: var(--green-900); transform: translateY(-1px); }
+.btn-secondary {
+  background: transparent; color: var(--green-800);
+  border: 1.5px solid var(--green-800);
+}
+.btn-secondary:hover { background: var(--green-50); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent; color: var(--muted); border: 1.5px solid var(--border);
+}
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn-danger {
+  background: transparent; color: var(--red-500); border: 1.5px solid #fecaca;
+}
+.btn-danger:hover { background: var(--red-100); }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ============================================
+   CARD
+   ============================================ */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 28px;
+}
+
+/* ============================================
+   NAVBAR
+   ============================================ */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  height: 60px; display: flex; align-items: center;
+}
+.navbar-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+}
+.navbar-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-size: 1.2rem; color: var(--green-800);
+}
+.navbar-logo .logo-icon {
+  width: 30px; height: 30px; background: var(--green-800); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; color: white; font-size: 16px;
+}
+.navbar-links { display: flex; align-items: center; gap: 4px; }
+.nav-link {
+  padding: 7px 14px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  color: var(--muted); transition: var(--transition); cursor: pointer;
+}
+.nav-link:hover, .nav-link.active { color: var(--green-800); background: var(--green-50); }
+.navbar-right { display: flex; align-items: center; gap: 12px; }
+.profile-dropdown { position: relative; }
+.profile-avatar {
+  width: 34px; height: 34px; background: var(--green-100); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--green-800); transition: var(--transition);
+  border: 2px solid transparent;
+}
+.profile-avatar:hover { border-color: var(--green-600); }
+.dropdown-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+  padding: 8px; min-width: 160px;
+  opacity: 0; visibility: hidden; transform: translateY(-6px); transition: var(--transition);
+}
+.dropdown-menu.open { opacity: 1; visibility: visible; transform: translateY(0); }
+.dropdown-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; border-radius: 8px; font-size: 14px;
+  color: var(--text); cursor: pointer; transition: var(--transition);
+}
+.dropdown-item:hover { background: var(--bg); }
+.dropdown-item.danger { color: var(--red-500); }
+/* mobile nav toggle */
+.hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 6px; }
+.hamburger span { width: 22px; height: 2px; background: var(--text); border-radius: 2px; transition: var(--transition); }
+.mobile-menu {
+  position: fixed; top: 60px; left: 0; right: 0;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 12px 24px 16px; z-index: 99;
+  display: none; flex-direction: column; gap: 4px;
+}
+.mobile-menu.open { display: flex; }
+
+/* ============================================
+   MAIN WRAPPER
+   ============================================ */
+.main-content {
+  padding-top: 60px; min-height: 100vh;
+}
+.container {
+  max-width: 1100px; margin: 0 auto; padding: 40px 24px;
+}
+.container-sm { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
+
+/* ============================================
+   LANDING PAGE
+   ============================================ */
+#page-landing {
+  min-height: 100vh;
+  display: none;
+  background: var(--bg);
+}
+#page-landing.active { display: flex; flex-direction: column; }
+.landing-hero {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 80px 24px 60px;
+}
+.hero-inner { max-width: 620px; text-align: center; animation: fadeUp .7s ease both; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--green-50); border: 1px solid var(--green-100);
+  color: var(--green-700); border-radius: 99px; padding: 6px 14px;
+  font-size: 13px; font-weight: 500; margin-bottom: 24px;
+}
+.hero-title {
+  font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 3.6rem);
+  line-height: 1.15; color: var(--text); margin-bottom: 18px;
+}
+.hero-title em { color: var(--green-800); font-style: italic; }
+.hero-desc {
+  font-size: 1.05rem; color: var(--muted); max-width: 480px;
+  margin: 0 auto 36px; line-height: 1.7;
+}
+.hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.hero-features {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  max-width: 720px; margin: 60px auto 0; padding: 0 24px;
+  animation: fadeUp .7s .2s ease both;
+}
+.feature-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px; text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+.feature-icon {
+  width: 40px; height: 40px; background: var(--green-50); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 12px;
+}
+.feature-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.feature-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* ============================================
+   AUTH PAGES
+   ============================================ */
+#page-login, #page-signup {
+  display: none; min-height: 100vh;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  align-items: center; justify-content: center; padding: 24px;
+}
+#page-login.active, #page-signup.active { display: flex; }
+.auth-card {
+  background: var(--card); border-radius: 20px;
+  padding: 40px 36px; width: 100%; max-width: 440px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.18);
+  animation: fadeUp .5s ease;
+}
+.auth-logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 28px; justify-content: center;
+}
+.auth-logo-icon {
+  width: 38px; height: 38px; background: var(--green-800); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; color: white; font-size: 20px;
+}
+.auth-logo-text { font-family: var(--font-display); font-size: 1.3rem; color: var(--green-800); }
+.auth-title { font-size: 1.4rem; font-weight: 700; text-align: center; margin-bottom: 6px; }
+.auth-subtitle { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 28px; }
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; color: var(--text); }
+.form-input {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+  border-radius: 9px; font-size: 14px; font-family: var(--font-body);
+  color: var(--text); transition: var(--transition); background: var(--bg);
+}
+.form-input:focus { outline: none; border-color: var(--green-600); background: #fff; }
+.form-input.error { border-color: var(--red-500); }
+.input-wrapper { position: relative; }
+.input-wrapper .form-input { padding-right: 44px; }
+.toggle-pw {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); cursor: pointer; font-size: 16px; transition: var(--transition);
+}
+.toggle-pw:hover { color: var(--text); }
+.error-msg { font-size: 12px; color: var(--red-500); margin-top: 5px; display: none; }
+.error-msg.show { display: block; }
+.auth-error-banner {
+  background: var(--red-100); border: 1px solid #fecaca; border-radius: 8px;
+  padding: 10px 14px; font-size: 13px; color: #b91c1c;
+  margin-bottom: 16px; display: none;
+}
+.auth-error-banner.show { display: block; }
+.auth-footer { text-align: center; margin-top: 20px; font-size: 13px; color: var(--muted); }
+.auth-footer a { color: var(--green-700); font-weight: 600; cursor: pointer; }
+
+/* ============================================
+   DASHBOARD / PREDICTION PAGE
+   ============================================ */
+.page-header { margin-bottom: 32px; }
+.page-header h1 { font-family: var(--font-display); font-size: 1.9rem; margin-bottom: 6px; }
+.page-header p { color: var(--muted); font-size: 14px; }
+.dashboard-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  align-items: start;
+}
+/* Upload */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 48px 24px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: var(--card);
+  position: relative;
+}
+.upload-area:hover { border-color: var(--green-600); background: var(--green-50); }
+.upload-area.drag-over { border-color: var(--green-600); background: var(--green-50); }
+.upload-area.has-image { border-style: solid; border-color: var(--green-600); padding: 16px; }
+.upload-icon { font-size: 42px; margin-bottom: 14px; }
+.upload-area h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.upload-area p { font-size: 13px; color: var(--muted); }
+.upload-area .btn { margin-top: 16px; }
+.image-preview-wrap { position: relative; }
+.image-preview {
+  width: 100%; border-radius: 10px; max-height: 260px;
+  object-fit: cover; display: block;
+}
+.remove-img {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px; background: rgba(0,0,0,.55); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 14px; cursor: pointer; transition: var(--transition);
+}
+.remove-img:hover { background: var(--red-500); }
+.image-name { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.submit-area { margin-top: 16px; text-align: center; }
+/* Result */
+.result-section { display: flex; flex-direction: column; gap: 16px; }
+.result-placeholder {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 52px 24px; text-align: center; color: var(--muted);
+}
+.result-placeholder .rp-icon { font-size: 48px; margin-bottom: 12px; }
+.result-placeholder p { font-size: 14px; }
+.result-card {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+  overflow: hidden; animation: fadeUp .35s ease;
+}
+.result-card-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.result-card-header h2 { font-size: 15px; font-weight: 700; }
+.result-card-body { padding: 20px 24px; }
+.disease-name { font-family: var(--font-display); font-size: 1.55rem; margin-bottom: 4px; }
+.result-meta { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+.confidence-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.confidence-label { font-size: 13px; font-weight: 600; }
+.confidence-val { font-size: 14px; font-weight: 700; color: var(--green-800); }
+.confidence-bar-bg {
+  background: var(--border); border-radius: 99px; height: 8px; overflow: hidden;
+}
+.confidence-bar {
+  height: 100%; border-radius: 99px; background: var(--green-700);
+  transition: width .6s ease; width: 0%;
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px; border-radius: 99px; font-size: 12px; font-weight: 600;
+}
+.badge-healthy { background: var(--green-100); color: var(--green-800); }
+.badge-diseased { background: var(--amber-100); color: #92400e; }
+.badge-severe { background: var(--red-100); color: #b91c1c; }
+.severity-indicator { margin-top: 14px; }
+.severity-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.severity-dots { display: flex; gap: 6px; }
+.severity-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--border); }
+.severity-dot.active-low { background: var(--green-600); }
+.severity-dot.active-mid { background: var(--amber-500); }
+.severity-dot.active-high { background: var(--red-500); }
+/* Treatment */
+.treatment-card {
+  background: var(--card); border-left: 4px solid var(--green-700);
+  border-radius: var(--radius); border: 1px solid var(--border);
+  border-left: 4px solid var(--green-700);
+  overflow: hidden; animation: fadeUp .4s .1s ease both;
+}
+.treatment-card-header {
+  padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none;
+}
+.treatment-card-header h3 { font-size: 15px; font-weight: 600; }
+.chevron { font-size: 18px; color: var(--muted); transition: transform .2s; }
+.chevron.open { transform: rotate(180deg); }
+.treatment-body { padding: 0 20px 20px; display: none; }
+.treatment-body.open { display: block; }
+.treatment-desc { font-size: 14px; color: var(--muted); margin-bottom: 14px; line-height: 1.7; }
+.treatment-section h4 { font-size: 13px; font-weight: 700; color: var(--green-800); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.treatment-list { list-style: none; padding: 0; margin-bottom: 16px; }
+.treatment-list li {
+  display: flex; gap: 8px; font-size: 14px; padding: 4px 0;
+  border-bottom: 1px solid var(--bg); align-items: flex-start;
+}
+.treatment-list li::before {
+  content: ''; width: 6px; height: 6px; background: var(--green-700);
+  border-radius: 50%; margin-top: 8px; flex-shrink: 0;
+}
+
+/* ============================================
+   HISTORY PAGE
+   ============================================ */
+.history-toolbar {
+  display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap;
+}
+.search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+.search-input-wrap svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); width: 16px; height: 16px;
+}
+.search-input {
+  width: 100%; padding: 10px 14px 10px 38px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 14px; font-family: var(--font-body); color: var(--text);
+  background: var(--card); transition: var(--transition);
+}
+.search-input:focus { outline: none; border-color: var(--green-600); }
+.sort-select {
+  padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 14px; font-family: var(--font-body); color: var(--text);
+  background: var(--card); cursor: pointer; transition: var(--transition);
+}
+.sort-select:focus { outline: none; border-color: var(--green-600); }
+.history-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px;
+}
+.history-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  overflow: hidden; transition: var(--transition); animation: fadeUp .3s ease;
+}
+.history-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.history-thumb {
+  width: 100%; height: 160px; object-fit: cover; display: block;
+  background: var(--green-50);
+}
+.history-thumb-placeholder {
+  width: 100%; height: 160px; background: var(--green-50);
+  display: flex; align-items: center; justify-content: center; font-size: 40px;
+}
+.history-card-body { padding: 16px; }
+.history-disease { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.history-conf { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.history-date { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.history-actions { display: flex; gap: 8px; }
+.history-actions .btn { flex: 1; justify-content: center; }
+.empty-state {
+  grid-column: 1 / -1; text-align: center; padding: 80px 24px;
+  background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+}
+.empty-icon { font-size: 60px; margin-bottom: 16px; }
+.empty-state h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.empty-state p { font-size: 14px; color: var(--muted); }
+
+/* ============================================
+   PROFILE PAGE
+   ============================================ */
+.profile-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+.profile-sidebar {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: 32px 24px; text-align: center;
+}
+.profile-avatar-lg {
+  width: 80px; height: 80px; background: var(--green-100); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 700; color: var(--green-800);
+  margin: 0 auto 16px;
+}
+.profile-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.profile-email { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+.profile-since { font-size: 12px; color: var(--muted); }
+.profile-main .card { margin-bottom: 20px; }
+.profile-main .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+
+/* ============================================
+   LOADER
+   ============================================ */
+.loader-overlay {
+  position: fixed; inset: 0; background: rgba(255,255,255,.75);
+  backdrop-filter: blur(4px); z-index: 999;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; transition: var(--transition);
+}
+.loader-overlay.show { opacity: 1; visibility: visible; }
+.loader-spinner {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid var(--green-100);
+  border-top-color: var(--green-800);
+  animation: spin .8s linear infinite;
+}
+
+/* ============================================
+   TOAST
+   ============================================ */
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.toast {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-md);
+  padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+  font-size: 14px; min-width: 260px; max-width: 340px;
+  animation: slideIn .3s ease;
+  transition: opacity .3s, transform .3s;
+}
+.toast.out { opacity: 0; transform: translateX(20px); }
+.toast-icon { font-size: 18px; flex-shrink: 0; }
+.toast-msg { flex: 1; }
+.toast.success { border-left: 4px solid var(--green-600); }
+.toast.error { border-left: 4px solid var(--red-500); }
+.toast.info { border-left: 4px solid #3b82f6; }
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  background: var(--card); border-top: 1px solid var(--border);
+  padding: 28px 24px; text-align: center;
+  font-size: 13px; color: var(--muted);
+}
+.footer strong { color: var(--text); }
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 900px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .hero-features { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .navbar-links { display: none; }
+  .hamburger { display: flex; }
+  .hero-features { grid-template-columns: 1fr; }
+  .history-grid { grid-template-columns: 1fr; }
+  .history-toolbar { flex-direction: column; align-items: stretch; }
+  .auth-card { padding: 30px 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOADER OVERLAY
+     ============================================================ -->
+<div class="loader-overlay" id="loader">
+  <div class="loader-spinner"></div>
+</div>
+
+<!-- ============================================================
+     TOAST CONTAINER
+     ============================================================ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     NAVBAR (hidden on auth pages)
+     ============================================================ -->
+<nav class="navbar" id="navbar" style="display:none">
+  <div class="navbar-inner">
+    <div class="navbar-logo" onclick="navigate('dashboard')" style="cursor:pointer">
+      <div class="logo-icon">🌿</div>
+      <span>LeafScan</span>
+    </div>
+    <div class="navbar-links">
+      <span class="nav-link" id="nav-dashboard" onclick="navigate('dashboard')">Dashboard</span>
+      <span class="nav-link" id="nav-history" onclick="navigate('history')">History</span>
+    </div>
+    <div class="navbar-right">
+      <div class="profile-dropdown">
+        <div class="profile-avatar" id="profileAvatar" onclick="toggleDropdown()">A</div>
+        <div class="dropdown-menu" id="dropdownMenu">
+          <div class="dropdown-item" onclick="navigate('profile')">👤 Profile</div>
+          <div class="dropdown-item danger" onclick="logout()">🚪 Logout</div>
+        </div>
+      </div>
+    </div>
+    <div class="hamburger" onclick="toggleMobileMenu()" id="hamburger">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+<div class="mobile-menu" id="mobileMenu">
+  <span class="nav-link" onclick="navigate('dashboard');toggleMobileMenu()">Dashboard</span>
+  <span class="nav-link" onclick="navigate('history');toggleMobileMenu()">History</span>
+  <span class="nav-link" onclick="navigate('profile');toggleMobileMenu()">Profile</span>
+  <span class="nav-link danger" onclick="logout()" style="color:var(--red-500)">Logout</span>
+</div>
+
+<!-- ============================================================
+     PAGE: LANDING
+     ============================================================ -->
+<div id="page-landing" class="page">
+  <div class="landing-hero">
+    <div class="hero-inner">
+      <div class="hero-badge">🌿 AI-Powered Plant Health</div>
+      <h1 class="hero-title">
+        Detect Plant Diseases<br/><em>Instantly & Accurately</em>
+      </h1>
+      <p class="hero-desc">
+        Upload a photo of your plant and get instant AI-powered disease detection, severity analysis, and personalized treatment recommendations.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="navigate('login')" style="padding:13px 28px;font-size:15px">Login</button>
+        <button class="btn btn-secondary" onclick="navigate('signup')" style="padding:13px 28px;font-size:15px">Create Account</button>
+      </div>
+    </div>
+  </div>
+  <div class="hero-features">
+    <div class="feature-card">
+      <div class="feature-icon">🔬</div>
+      <h3>Instant Analysis</h3>
+      <p>Get real-time disease detection powered by advanced AI models in seconds.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💊</div>
+      <h3>Treatment Plans</h3>
+      <p>Receive tailored treatment recommendations and prevention tips for each disease.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>History Tracking</h3>
+      <p>Monitor plant health over time with a detailed history and downloadable PDF reports.</p>
+    </div>
+  </div>
+  <div style="height:60px"></div>
+  <footer class="footer">
+    <strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0 &nbsp;·&nbsp; Built with 🌱 by the LeafScan Team
+  </footer>
+</div>
+
+<!-- ============================================================
+     PAGE: LOGIN
+     ============================================================ -->
+<div id="page-login" class="page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🌿</div>
+      <span class="auth-logo-text">LeafScan</span>
+    </div>
+    <h2 class="auth-title">Welcome back</h2>
+    <p class="auth-subtitle">Sign in to continue to your dashboard</p>
+    <div class="auth-error-banner" id="loginError"></div>
+    <div class="form-group">
+      <label class="form-label">Email address</label>
+      <input type="email" id="loginEmail" class="form-input" placeholder="you@example.com" />
+      <span class="error-msg" id="loginEmailErr">Please enter a valid email.</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <div class="input-wrapper">
+        <input type="password" id="loginPw" class="form-input" placeholder="••••••••" />
+        <span class="toggle-pw" onclick="togglePw('loginPw', this)">👁</span>
+      </div>
+      <span class="error-msg" id="loginPwErr">Password is required.</span>
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:13px;margin-top:6px" onclick="handleLogin()">Sign In</button>
+    <div class="auth-footer">
+      Don't have an account? <a onclick="navigate('signup')">Create one</a>
+    </div>
+    <div class="auth-footer" style="margin-top:8px">
+      <a onclick="navigate('landing')" style="color:var(--muted)">← Back to home</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAGE: SIGNUP
+     ============================================================ -->
+<div id="page-signup" class="page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🌿</div>
+      <span class="auth-logo-text">LeafScan</span>
+    </div>
+    <h2 class="auth-title">Create account</h2>
+    <p class="auth-subtitle">Start detecting plant diseases today</p>
+    <div class="auth-error-banner" id="signupError"></div>
+    <div class="form-group">
+      <label class="form-label">Full name</label>
+      <input type="text" id="signupName" class="form-input" placeholder="Jane Doe" />
+      <span class="error-msg" id="signupNameErr">Name is required.</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email address</label>
+      <input type="email" id="signupEmail" class="form-input" placeholder="you@example.com" />
+      <span class="error-msg" id="signupEmailErr">Please enter a valid email.</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <div class="input-wrapper">
+        <input type="password" id="signupPw" class="form-input" placeholder="••••••••" />
+        <span class="toggle-pw" onclick="togglePw('signupPw', this)">👁</span>
+      </div>
+      <span class="error-msg" id="signupPwErr">Password must be at least 6 characters.</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm password</label>
+      <div class="input-wrapper">
+        <input type="password" id="signupPw2" class="form-input" placeholder="••••••••" />
+        <span class="toggle-pw" onclick="togglePw('signupPw2', this)">👁</span>
+      </div>
+      <span class="error-msg" id="signupPw2Err">Passwords do not match.</span>
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:13px;margin-top:6px" onclick="handleSignup()">Create Account</button>
+    <div class="auth-footer">
+      Already have an account? <a onclick="navigate('login')">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAGE: DASHBOARD
+     ============================================================ -->
+<div id="page-dashboard" class="page">
+  <div class="main-content">
+    <div class="container">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>Upload a plant image to detect diseases and get treatment recommendations</p>
+      </div>
+      <div class="dashboard-grid">
+        <!-- LEFT: Upload -->
+        <div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--border)">
+              <h2 style="font-size:15px;font-weight:700">Upload Plant Image</h2>
+            </div>
+            <div style="padding:20px 24px">
+              <div class="upload-area" id="uploadArea"
+                   onclick="triggerFileInput()"
+                   ondragover="onDragOver(event)"
+                   ondragleave="onDragLeave(event)"
+                   ondrop="onDrop(event)">
+                <div id="uploadPrompt">
+                  <div class="upload-icon">🌿</div>
+                  <h3>Drop your plant image here</h3>
+                  <p>Supports JPG, PNG – Max 10MB</p>
+                  <button class="btn btn-secondary btn-sm" style="margin-top:14px" onclick="triggerFileInput(event)">Choose File</button>
+                </div>
+                <div id="uploadPreview" style="display:none">
+                  <div class="image-preview-wrap">
+                    <img id="previewImg" class="image-preview" src="" alt="Preview" />
+                    <div class="remove-img" onclick="removeImage(event)">✕</div>
+                  </div>
+                  <div class="image-name" id="imageName"></div>
+                </div>
+              </div>
+              <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" style="display:none" onchange="onFileSelect(event)" />
+              <div class="submit-area">
+                <button class="btn btn-primary" id="analyzeBtn" style="width:100%;padding:13px" disabled onclick="analyzeImage()">
+                  🔬 Analyze Plant
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Results -->
+        <div class="result-section" id="resultSection">
+          <div class="result-placeholder" id="resultPlaceholder">
+            <div class="rp-icon">🔍</div>
+            <p>Upload an image and click<br/><strong>Analyze Plant</strong> to see results here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="footer">
+      <strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0
+    </footer>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAGE: HISTORY
+     ============================================================ -->
+<div id="page-history" class="page">
+  <div class="main-content">
+    <div class="container">
+      <div class="page-header">
+        <h1>Detection History</h1>
+        <p>All your past plant disease analyses and reports</p>
+      </div>
+      <div class="history-toolbar">
+        <div class="search-input-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="search-input" type="text" id="historySearch" placeholder="Search by disease name…" oninput="renderHistory()" />
+        </div>
+        <select class="sort-select" id="historySort" onchange="renderHistory()">
+          <option value="latest">Latest First</option>
+          <option value="confidence">Highest Confidence</option>
+        </select>
+      </div>
+      <div class="history-grid" id="historyGrid"></div>
+    </div>
+    <footer class="footer">
+      <strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0
+    </footer>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAGE: PROFILE
+     ============================================================ -->
+<div id="page-profile" class="page">
+  <div class="main-content">
+    <div class="container">
+      <div class="page-header">
+        <h1>Profile</h1>
+        <p>Manage your account settings</p>
+      </div>
+      <div class="profile-grid">
+        <div class="profile-sidebar">
+          <div class="profile-avatar-lg" id="sidebarInitial">A</div>
+          <div class="profile-name" id="sidebarName">–</div>
+          <div class="profile-email" id="sidebarEmail">–</div>
+          <div class="profile-since" id="sidebarSince">Member since –</div>
+          <div style="height:24px"></div>
+          <button class="btn btn-danger" style="width:100%" onclick="logout()">🚪 Logout</button>
+        </div>
+        <div class="profile-main">
+          <div class="card">
+            <h2>Account Information</h2>
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-input" id="profileName" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" class="form-input" id="profileEmail" readonly style="opacity:.65;cursor:not-allowed" />
+            </div>
+            <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+          </div>
+          <div class="card">
+            <h2>Change Password</h2>
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input type="password" class="form-input" id="curPw" placeholder="••••••••" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" class="form-input" id="newPw" placeholder="••••••••" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" class="form-input" id="confirmNewPw" placeholder="••••••••" />
+            </div>
+            <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="footer">
+      <strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0
+    </footer>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+/* =====================================================
+   STATE
+   ===================================================== */
+let currentPage = 'landing';
+let currentUser = null;
+let selectedFile = null;
+let selectedImageDataURL = null;
+let historyData = [];
+
+/* =====================================================
+   DISEASE DATABASE
+   ===================================================== */
+const DISEASES = {
+  'Healthy': {
+    description: 'No disease detected. Your plant appears to be in excellent health.',
+    treatment: [],
+    prevention: ['Maintain regular watering schedule', 'Ensure proper sunlight', 'Monitor for early signs of pests'],
+    severity: 0
+  },
+  'Bacterial Blight': {
+    description: 'Bacterial blight is caused by Xanthomonas species and leads to water-soaked lesions that turn brown.',
+    treatment: ['Remove and destroy infected leaves', 'Apply copper-based bactericides', 'Avoid overhead irrigation', 'Improve field drainage'],
+    prevention: ['Use certified disease-free seeds', 'Practice crop rotation', 'Maintain proper plant spacing', 'Disinfect tools regularly'],
+    severity: 2
+  },
+  'Leaf Rust': {
+    description: 'Rust diseases are caused by Puccinia fungal species producing orange or yellow powdery pustules on leaves.',
+    treatment: ['Apply fungicide (mancozeb or triazole)', 'Remove severely affected leaves', 'Improve air circulation', 'Avoid wetting foliage'],
+    prevention: ['Plant rust-resistant varieties', 'Monitor during humid seasons', 'Apply preventive fungicides', 'Ensure proper spacing'],
+    severity: 2
+  },
+  'Early Blight': {
+    description: 'Early blight is caused by Alternaria solani, producing characteristic concentric ring lesions on leaves and stems.',
+    treatment: ['Apply chlorothalonil or mancozeb fungicide', 'Remove and dispose of infected material', 'Water plants at the base', 'Mulch around base of plant'],
+    prevention: ['Rotate crops every 2–3 seasons', 'Avoid working when plants are wet', 'Plant resistant varieties', 'Maintain balanced fertilization'],
+    severity: 1
+  },
+  'Powdery Mildew': {
+    description: 'Powdery mildew manifests as white powdery growth on leaf surfaces, caused by various fungal species.',
+    treatment: ['Apply sulfur-based fungicide', 'Use potassium bicarbonate spray', 'Remove affected plant parts', 'Increase air circulation'],
+    prevention: ['Choose resistant cultivars', 'Avoid overhead watering', 'Ensure adequate spacing', 'Apply neem oil preventively'],
+    severity: 1
+  },
+  'Late Blight': {
+    description: 'Late blight (Phytophthora infestans) is a devastating disease that can destroy entire crops rapidly under humid conditions.',
+    treatment: ['Apply metalaxyl or cymoxanil fungicide immediately', 'Remove all infected tissue', 'Destroy crop debris thoroughly', 'Consult agricultural extension'],
+    prevention: ['Use certified blight-free seed material', 'Apply preventive fungicides during humid periods', 'Ensure excellent drainage', 'Monitor weather-based disease forecasts'],
+    severity: 3
+  },
+  'Septoria Leaf Spot': {
+    description: 'Septoria leaf spot causes small, circular spots with dark borders and tan centers on tomato and other plant leaves.',
+    treatment: ['Apply chlorothalonil-based fungicide', 'Remove lower infected leaves', 'Avoid overhead irrigation', 'Apply copper fungicides as backup'],
+    prevention: ['Use disease-free transplants', 'Practice 3-year crop rotation', 'Mulch to prevent soil splash', 'Monitor regularly from seedling stage'],
+    severity: 1
+  }
+};
+
+const DISEASE_LIST = Object.keys(DISEASES);
+const SEVERITY_LABELS = ['None', 'Low', 'Moderate', 'Severe'];
+const SEVERITY_COLORS = ['var(--green-600)', 'var(--amber-500)', 'var(--amber-500)', 'var(--red-500)'];
+
+/* =====================================================
+   HISTORY INIT
+   ===================================================== */
+function initMockHistory() {
+  const existing = JSON.parse(localStorage.getItem('leafscan_history') || 'null');
+  if (existing) { historyData = existing; return; }
+  historyData = [];
+  saveHistory();
+}
+
+function saveHistory() {
+  try { localStorage.setItem('leafscan_history', JSON.stringify(historyData)); } catch(e) {}
+}
+
+/* =====================================================
+   AUTH UTILS
+   ===================================================== */
+function generateJWT(payload) {
+  // Mock JWT structure (not cryptographically real)
+  const header = btoa(JSON.stringify({alg:'HS256',typ:'JWT'}));
+  const body = btoa(JSON.stringify({...payload, exp: Date.now() + 86400000}));
+  const sig = btoa('mock_signature_' + Date.now());
+  return `${header}.${body}.${sig}`;
+}
+
+function parseJWT(token) {
+  try {
+    const parts = token.split('.');
+    return JSON.parse(atob(parts[1]));
+  } catch(e) { return null; }
+}
+
+function isTokenValid() {
+  const token = localStorage.getItem('leafscan_token');
+  if (!token) return false;
+  const payload = parseJWT(token);
+  if (!payload) return false;
+  if (payload.exp < Date.now()) {
+    localStorage.removeItem('leafscan_token');
+    localStorage.removeItem('leafscan_user');
+    return false;
+  }
+  return true;
+}
+
+/* =====================================================
+   NAVIGATION
+   ===================================================== */
+function navigate(page) {
+  // Auth guard
+  const protectedPages = ['dashboard', 'history', 'profile'];
+  if (protectedPages.includes(page) && !isTokenValid()) {
+    showToast('Please log in to continue.', 'info');
+    page = 'login';
+  }
+
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('navbar').style.display = protectedPages.includes(page) ? 'flex' : 'none';
+  document.getElementById('mobileMenu').classList.remove('open');
+
+  // Update nav active state
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const activeLink = document.getElementById('nav-' + page);
+  if (activeLink) activeLink.classList.add('active');
+
+  currentPage = page;
+
+  // Page-specific init
+  if (page === 'history') renderHistory();
+  if (page === 'profile') loadProfile();
+  if (page === 'dashboard') {
+    const user = JSON.parse(localStorage.getItem('leafscan_user') || '{}');
+    const initials = (user.name || 'A').charAt(0).toUpperCase();
+    document.getElementById('profileAvatar').textContent = initials;
+  }
+
+  window.scrollTo(0, 0);
+}
+
+/* =====================================================
+   LOGIN / SIGNUP
+   ===================================================== */
+function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPw').value;
+  let valid = true;
+
+  // Reset
+  ['loginEmail','loginPw'].forEach(id => document.getElementById(id).classList.remove('error'));
+  ['loginEmailErr','loginPwErr'].forEach(id => { const el=document.getElementById(id); el.classList.remove('show'); });
+  document.getElementById('loginError').classList.remove('show');
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    document.getElementById('loginEmail').classList.add('error');
+    document.getElementById('loginEmailErr').classList.add('show');
+    valid = false;
+  }
+  if (!pw) {
+    document.getElementById('loginPw').classList.add('error');
+    document.getElementById('loginPwErr').classList.add('show');
+    valid = false;
+  }
+  if (!valid) return;
+
+  showLoader();
+  setTimeout(() => {
+    hideLoader();
+    // Check registered users or accept any login as demo
+    const storedUser = JSON.parse(localStorage.getItem('leafscan_user') || '{}');
+    if (storedUser.email && storedUser.email !== email) {
+      const err = document.getElementById('loginError');
+      err.textContent = 'Invalid email or password. Try demo@example.com / any password.';
+      err.classList.add('show');
+      return;
+    }
+    const user = storedUser.email ? storedUser : { name: 'Demo User', email, createdAt: new Date().toISOString() };
+    const token = generateJWT({ sub: email, name: user.name });
+    localStorage.setItem('leafscan_token', token);
+    localStorage.setItem('leafscan_user', JSON.stringify(user));
+    initMockHistory();
+    showToast('Welcome back, ' + user.name + '!', 'success');
+    navigate('dashboard');
+  }, 900);
+}
+
+function handleSignup() {
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pw = document.getElementById('signupPw').value;
+  const pw2 = document.getElementById('signupPw2').value;
+  let valid = true;
+
+  ['signupNameErr','signupEmailErr','signupPwErr','signupPw2Err'].forEach(id => document.getElementById(id).classList.remove('show'));
+  ['signupName','signupEmail','signupPw','signupPw2'].forEach(id => document.getElementById(id).classList.remove('error'));
+  document.getElementById('signupError').classList.remove('show');
+
+  if (!name) { document.getElementById('signupName').classList.add('error'); document.getElementById('signupNameErr').classList.add('show'); valid=false; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('signupEmail').classList.add('error'); document.getElementById('signupEmailErr').classList.add('show'); valid=false; }
+  if (pw.length < 6) { document.getElementById('signupPw').classList.add('error'); document.getElementById('signupPwErr').classList.add('show'); valid=false; }
+  if (pw !== pw2) { document.getElementById('signupPw2').classList.add('error'); document.getElementById('signupPw2Err').classList.add('show'); valid=false; }
+  if (!valid) return;
+
+  showLoader();
+  setTimeout(() => {
+    hideLoader();
+    const user = { name, email, createdAt: new Date().toISOString() };
+    const token = generateJWT({ sub: email, name });
+    localStorage.setItem('leafscan_token', token);
+    localStorage.setItem('leafscan_user', JSON.stringify(user));
+    initMockHistory();
+    showToast('Account created! Welcome, ' + name + '!', 'success');
+    navigate('dashboard');
+  }, 900);
+}
+
+function logout() {
+  localStorage.removeItem('leafscan_token');
+  showToast('Logged out successfully.', 'info');
+  navigate('landing');
+}
+
+/* =====================================================
+   IMAGE UPLOAD
+   ===================================================== */
+function triggerFileInput(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('fileInput').click();
+}
+
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+  e.target.value = '';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.add('drag-over');
+}
+function onDragLeave() {
+  document.getElementById('uploadArea').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) {
+    showToast('Only JPG and PNG files are supported.', 'error'); return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('File size must be under 10MB.', 'error'); return;
+  }
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    selectedImageDataURL = ev.target.result;
+    document.getElementById('previewImg').src = ev.target.result;
+    document.getElementById('imageName').textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('uploadPrompt').style.display = 'none';
+    document.getElementById('uploadPreview').style.display = 'block';
+    document.getElementById('uploadArea').classList.add('has-image');
+    document.getElementById('analyzeBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage(e) {
+  e.stopPropagation();
+  selectedFile = null; selectedImageDataURL = null;
+  document.getElementById('uploadPrompt').style.display = 'block';
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('uploadArea').classList.remove('has-image');
+  document.getElementById('analyzeBtn').disabled = true;
+}
+
+/* =====================================================
+   MOCK PREDICTION
+   ===================================================== */
+function analyzeImage() {
+  if (!selectedFile) return;
+  showLoader();
+  document.getElementById('analyzeBtn').disabled = true;
+
+  setTimeout(() => {
+    hideLoader();
+
+    // Random prediction
+    const diseaseIndex = Math.floor(Math.random() * DISEASE_LIST.length);
+    const disease = DISEASE_LIST[diseaseIndex];
+    const confidence = +(55 + Math.random() * 42).toFixed(1);
+    const status = disease === 'Healthy' ? 'Healthy' : 'Diseased';
+    const severity = DISEASES[disease].severity;
+    const timestamp = Date.now();
+
+    const result = { id: 'h_' + Date.now(), diseaseName: disease, confidence, timestamp, status, severity, imageDataURL: selectedImageDataURL };
+    historyData.unshift(result);
+    saveHistory();
+
+    renderResultCard(result);
+    renderTreatmentCard(disease);
+    showToast('Analysis complete!', 'success');
+    document.getElementById('analyzeBtn').disabled = false;
+  }, 1800);
+}
+
+function renderResultCard(result) {
+  const { diseaseName, confidence, timestamp, status, severity } = result;
+  const placeholderEl = document.getElementById('resultPlaceholder');
+  if (placeholderEl) placeholderEl.remove();
+
+  // Remove previous result cards
+  document.querySelectorAll('#resultSection .result-card, #resultSection .treatment-card').forEach(e => e.remove());
+
+  const sev = severity;
+  const sevDots = [1,2,3,4,5].map(i => {
+    let cls = '';
+    if (sev === 0) cls = '';
+    else if (sev === 1) cls = i <= 2 ? 'active-low' : '';
+    else if (sev === 2) cls = i <= 3 ? 'active-mid' : '';
+    else cls = 'active-high';
+    return `<div class="severity-dot ${cls}"></div>`;
+  }).join('');
+
+  const badgeClass = status === 'Healthy' ? 'badge-healthy' : (sev >= 3 ? 'badge-severe' : 'badge-diseased');
+
+  const card = document.createElement('div');
+  card.className = 'result-card';
+  card.innerHTML = `
+    <div class="result-card-header">
+      <h2>Analysis Result</h2>
+      <span class="badge ${badgeClass}">${status}</span>
+    </div>
+    <div class="result-card-body">
+      <div class="disease-name">${diseaseName}</div>
+      <div class="result-meta">${formatDate(timestamp)}</div>
+      <div class="confidence-row">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-val">${confidence}%</span>
+      </div>
+      <div class="confidence-bar-bg">
+        <div class="confidence-bar" id="confBar" style="width:0%"></div>
+      </div>
+      <div class="severity-indicator" style="margin-top:16px">
+        <div class="severity-label">Severity: ${SEVERITY_LABELS[sev] || 'None'}</div>
+        <div class="severity-dots">${sevDots}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('resultSection').prepend(card);
+  setTimeout(() => { document.getElementById('confBar').style.width = confidence + '%'; }, 80);
+}
+
+function renderTreatmentCard(disease) {
+  const info = DISEASES[disease] || DISEASES['Healthy'];
+  const treatmentHTML = info.treatment.length ? info.treatment.map(t => `<li>${t}</li>`).join('') : '<li>No specific treatment needed.</li>';
+  const preventionHTML = info.prevention.map(p => `<li>${p}</li>`).join('');
+
+  const card = document.createElement('div');
+  card.className = 'treatment-card';
+  card.innerHTML = `
+    <div class="treatment-card-header" onclick="toggleTreatment(this)">
+      <h3>💊 Treatment Recommendations</h3>
+      <span class="chevron open">⌄</span>
+    </div>
+    <div class="treatment-body open">
+      <p class="treatment-desc">${info.description}</p>
+      <div class="treatment-section">
+        <h4>Treatment Steps</h4>
+        <ul class="treatment-list">${treatmentHTML}</ul>
+      </div>
+      <div class="treatment-section">
+        <h4>Prevention Tips</h4>
+        <ul class="treatment-list">${preventionHTML}</ul>
+      </div>
+    </div>`;
+  document.getElementById('resultSection').appendChild(card);
+}
+
+function toggleTreatment(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+/* =====================================================
+   HISTORY
+   ===================================================== */
+function renderHistory() {
+  const q = (document.getElementById('historySearch')?.value || '').toLowerCase().trim();
+  const sort = document.getElementById('historySort')?.value || 'latest';
+
+  let filtered = historyData.filter(h => !q || h.diseaseName.toLowerCase().includes(q));
+  if (sort === 'latest') filtered.sort((a,b) => b.timestamp - a.timestamp);
+  else if (sort === 'confidence') filtered.sort((a,b) => b.confidence - a.confidence);
+
+  const grid = document.getElementById('historyGrid');
+  grid.innerHTML = '';
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🌿</div>
+      <h3>No records found</h3>
+      <p>Your plant disease detection history will appear here.</p>
+    </div>`;
+    return;
+  }
+
+  filtered.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    const badgeClass = item.status === 'Healthy' ? 'badge-healthy' : (item.severity >= 3 ? 'badge-severe' : 'badge-diseased');
+    const thumbHtml = item.imageDataURL
+      ? `<img class="history-thumb" src="${item.imageDataURL}" alt="Plant" />`
+      : `<div class="history-thumb-placeholder">🌱</div>`;
+
+    card.innerHTML = `
+      ${thumbHtml}
+      <div class="history-card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="history-disease">${item.diseaseName}</div>
+          <span class="badge ${badgeClass}">${item.status}</span>
+        </div>
+        <div class="history-conf">Confidence: <strong>${item.confidence}%</strong></div>
+        <div class="confidence-bar-bg" style="margin-bottom:12px">
+          <div class="confidence-bar" style="width:${item.confidence}%"></div>
+        </div>
+        <div class="history-date">📅 ${formatDate(item.timestamp)}</div>
+        <div class="history-actions">
+          <button class="btn btn-secondary btn-sm" onclick="downloadPDF('${item.id}')">⬇ Download PDF</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteRecord('${item.id}')">🗑 Delete</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function deleteRecord(id) {
+  historyData = historyData.filter(h => h.id !== id);
+  saveHistory();
+  renderHistory();
+  showToast('Record deleted.', 'info');
+}
+
+/* =====================================================
+   PDF GENERATION
+   ===================================================== */
+function downloadPDF(id) {
+  const record = historyData.find(h => h.id === id);
+  if (!record) { showToast('Record not found.', 'error'); return; }
+
+  showLoader();
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, margin = 18;
+      let y = 0;
+
+      // Header bar
+      doc.setFillColor(22, 101, 52);
+      doc.rect(0, 0, W, 30, 'F');
+      doc.setFontSize(20);
+      doc.setTextColor(255,255,255);
+      doc.setFont('helvetica','bold');
+      doc.text('🌿 LeafScan – Plant Disease Report', margin, 19);
+      y = 42;
+
+      // Meta
+      doc.setTextColor(80,80,80);
+      doc.setFontSize(10);
+      doc.setFont('helvetica','normal');
+      doc.text('Generated: ' + formatDate(Date.now()), margin, y); y += 6;
+      doc.text('Analysis Date: ' + formatDate(record.timestamp), margin, y); y += 10;
+
+      // Divider
+      doc.setDrawColor(200,200,200);
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      // Disease name
+      doc.setFontSize(18);
+      doc.setFont('helvetica','bold');
+      doc.setTextColor(22,101,52);
+      doc.text(record.diseaseName, margin, y); y += 8;
+
+      // Status badges
+      doc.setFontSize(11);
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(50,50,50);
+      doc.text('Status: ' + record.status + '  |  Confidence: ' + record.confidence + '%  |  Severity: ' + (SEVERITY_LABELS[record.severity] || 'None'), margin, y); y += 8;
+
+      // Confidence bar visual
+      doc.setFillColor(230,230,230);
+      doc.rect(margin, y, 120, 5, 'F');
+      doc.setFillColor(22,101,52);
+      doc.rect(margin, y, 120 * record.confidence / 100, 5, 'F');
+      y += 12;
+
+      // Divider
+      doc.setDrawColor(200,200,200);
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      // Description
+      const info = DISEASES[record.diseaseName] || DISEASES['Healthy'];
+      doc.setFontSize(11);
+      doc.setFont('helvetica','bold');
+      doc.setTextColor(30,30,30);
+      doc.text('Description', margin, y); y += 6;
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(70,70,70);
+      const descLines = doc.splitTextToSize(info.description, W - margin * 2);
+      doc.text(descLines, margin, y); y += descLines.length * 6 + 6;
+
+      // Treatment
+      if (info.treatment.length) {
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(30,30,30);
+        doc.text('Treatment Steps', margin, y); y += 6;
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(70,70,70);
+        info.treatment.forEach(t => { doc.text('• ' + t, margin + 3, y); y += 6; });
+        y += 4;
+      }
+
+      // Prevention
+      doc.setFont('helvetica','bold');
+      doc.setTextColor(30,30,30);
+      doc.text('Prevention Tips', margin, y); y += 6;
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(70,70,70);
+      info.prevention.forEach(p => { doc.text('• ' + p, margin + 3, y); y += 6; });
+      y += 8;
+
+      // Image
+      if (record.imageDataURL) {
+        try {
+          doc.setFont('helvetica','bold');
+          doc.setTextColor(30,30,30);
+          doc.text('Plant Image', margin, y); y += 4;
+          const imgW = 80, imgH = 60;
+          doc.addImage(record.imageDataURL, 'JPEG', margin, y, imgW, imgH);
+          y += imgH + 8;
+        } catch(imgErr) { /* skip if image fails */ }
+      }
+
+      // Footer
+      doc.setDrawColor(200,200,200);
+      doc.line(margin, 280, W - margin, 280);
+      doc.setFontSize(9);
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(140,140,140);
+      doc.text('LeafScan Plant Disease Detection System  |  v1.0.0  |  For informational purposes only.', margin, 285);
+
+      const dateStr = new Date().toISOString().slice(0,10);
+      doc.save(`prediction-report-${dateStr}.pdf`);
+      showToast('PDF downloaded!', 'success');
+    } catch(e) {
+      console.error(e);
+      showToast('Failed to generate PDF.', 'error');
+    }
+    hideLoader();
+  }, 400);
+}
+
+/* =====================================================
+   PROFILE
+   ===================================================== */
+function loadProfile() {
+  const user = JSON.parse(localStorage.getItem('leafscan_user') || '{}');
+  document.getElementById('profileName').value = user.name || '';
+  document.getElementById('profileEmail').value = user.email || '';
+  document.getElementById('sidebarName').textContent = user.name || '–';
+  document.getElementById('sidebarEmail').textContent = user.email || '–';
+  document.getElementById('sidebarInitial').textContent = (user.name || 'A').charAt(0).toUpperCase();
+  document.getElementById('sidebarSince').textContent = 'Member since ' + (user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {month:'long',year:'numeric'}) : '–');
+}
+
+function saveProfile() {
+  const name = document.getElementById('profileName').value.trim();
+  if (!name) { showToast('Name cannot be empty.', 'error'); return; }
+  const user = JSON.parse(localStorage.getItem('leafscan_user') || '{}');
+  user.name = name;
+  localStorage.setItem('leafscan_user', JSON.stringify(user));
+  // Update JWT
+  const token = generateJWT({ sub: user.email, name });
+  localStorage.setItem('leafscan_token', token);
+  loadProfile();
+  const initials = name.charAt(0).toUpperCase();
+  document.getElementById('profileAvatar').textContent = initials;
+  showToast('Profile updated!', 'success');
+}
+
+function changePassword() {
+  const cur = document.getElementById('curPw').value;
+  const newPw = document.getElementById('newPw').value;
+  const confirm = document.getElementById('confirmNewPw').value;
+  if (!cur) { showToast('Enter your current password.', 'error'); return; }
+  if (newPw.length < 6) { showToast('New password must be at least 6 characters.', 'error'); return; }
+  if (newPw !== confirm) { showToast('Passwords do not match.', 'error'); return; }
+  document.getElementById('curPw').value = '';
+  document.getElementById('newPw').value = '';
+  document.getElementById('confirmNewPw').value = '';
+  showToast('Password updated successfully!', 'success');
+}
+
+/* =====================================================
+   NAVBAR UTILITIES
+   ===================================================== */
+function toggleDropdown() {
+  document.getElementById('dropdownMenu').classList.toggle('open');
+}
+function toggleMobileMenu() {
+  document.getElementById('mobileMenu').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('dropdownMenu');
+  if (!e.target.closest('.profile-dropdown')) dd.classList.remove('open');
+});
+
+/* =====================================================
+   UTILITIES
+   ===================================================== */
+function formatDate(ts) {
+  return new Date(ts).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function showLoader() { document.getElementById('loader').classList.add('show'); }
+function hideLoader() { document.getElementById('loader').classList.remove('show'); }
+
+function showToast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 350);
+  }, 3200);
+}
+
+/* =====================================================
+   INIT
+   ===================================================== */
+(function init() {
+  if (isTokenValid()) {
+    initMockHistory();
+    navigate('dashboard');
+  } else {
+    navigate('landing');
+  }
+})();
+</script>
+</body>
+</html>
