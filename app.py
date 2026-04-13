@@ -20,6 +20,8 @@ import os
 import json
 import io
 import logging
+from dotenv import load_dotenv 
+load_dotenv()
 
 import numpy as np
 from flask import Flask, request, jsonify, render_template
