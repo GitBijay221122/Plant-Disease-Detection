@@ -20,7 +20,7 @@ import os
 import json
 import io
 import logging
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
 load_dotenv()
 
 import numpy as np
@@ -41,9 +41,9 @@ BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH   = os.path.join(BASE_DIR, "plant_disease_model.h5")
 LABELS_PATH  = os.path.join(BASE_DIR, "class_labels.json")
 IMG_SIZE     = (224, 224)
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL   = "llama3-8b-8192"
+GROQ_MODEL   = "llama-3.3-70b-versatile"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 # ── Load model at startup ─────────────────────────────────────────────────────
@@ -61,6 +61,7 @@ app = Flask(__name__)
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024   # 10 MB
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -77,10 +78,36 @@ def preprocess(file_bytes: bytes) -> np.ndarray:
 
 
 def parse_label(raw: str) -> dict:
-    parts   = raw.split("___", 1)
-    plant   = parts[0].replace("_", " ")
-    disease = (parts[1] if len(parts) > 1 else "Unknown").replace("_", " ")
-    return {"plant": plant, "disease": disease, "is_healthy": "healthy" in disease.lower()}
+    """
+    Handles both label formats:
+      - Triple underscore:  "Tomato___Late_blight"  → plant=Tomato, disease=Late blight
+      - Single underscore:  "Tomato_Late_blight"    → plant=Tomato, disease=Late blight
+      - Single word:        "Tomato"                → plant=Tomato, disease=Healthy (fallback)
+    """
+    if "___" in raw:
+        # Standard PlantVillage format
+        parts   = raw.split("___", 1)
+        plant   = parts[0].replace("_", " ").strip().title()
+        disease = parts[1].replace("_", " ").strip().title() if len(parts) > 1 else ""
+    else:
+        # Single-underscore format: first token = plant, rest = disease
+        tokens  = raw.split("_")
+        plant   = tokens[0].strip().title()
+        disease = " ".join(tokens[1:]).strip().title() if len(tokens) > 1 else ""
+
+    # Normalise empty / whitespace disease
+    if not disease:
+        disease = "Healthy"
+
+    is_healthy = "healthy" in disease.lower()
+
+    log.info("parse_label | raw=%r → plant=%r disease=%r healthy=%s", raw, plant, disease, is_healthy)
+
+    return {
+        "plant":      plant,
+        "disease":    disease,
+        "is_healthy": is_healthy,
+    }
 
 
 def get_recommendations(plant: str, disease: str, is_healthy: bool) -> dict:
@@ -89,7 +116,7 @@ def get_recommendations(plant: str, disease: str, is_healthy: bool) -> dict:
 
     if is_healthy:
         prompt = f"""
-The plant "{plant}" is healthy. Provide advice to keep it that way.
+The plant "{plant}" appears healthy. Provide advice to keep it that way.
 Respond ONLY with a valid JSON object — no markdown, no extra text.
 Use this exact structure:
 {{
@@ -134,7 +161,7 @@ Use this exact structure:
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.4,
-        "max_tokens":  800,
+        "max_tokens": 800,
     }
 
     try:
@@ -142,20 +169,30 @@ Use this exact structure:
         resp.raise_for_status()
         raw_text = resp.json()["choices"][0]["message"]["content"].strip()
 
+        # Strip markdown fences if present
         if raw_text.startswith("```"):
             raw_text = raw_text.split("```")[1]
             if raw_text.startswith("json"):
                 raw_text = raw_text[4:]
+        raw_text = raw_text.strip()
 
         return json.loads(raw_text)
 
     except requests.exceptions.Timeout:
         return {"error": "Groq API timed out. Please try again."}
     except requests.exceptions.HTTPError as e:
-        return {"error": f"Groq API error: {e.response.status_code}"}
-    except json.JSONDecodeError:
+        status_code = e.response.status_code
+        try:
+            detail = e.response.json()
+        except Exception:
+            detail = e.response.text
+        log.error("Groq HTTP %s: %s", status_code, detail)
+        return {"error": f"Groq API error: {status_code} — {detail}"}
+    except json.JSONDecodeError as e:
+        log.error("Groq JSON decode error: %s | raw_text=%r", e, raw_text)
         return {"error": "Could not parse Groq response as JSON."}
     except Exception as e:
+        log.error("Unexpected Groq error: %s", e)
         return {"error": f"Unexpected error: {str(e)}"}
 
 
@@ -163,15 +200,19 @@ def run_inference(file_bytes: bytes, top_k: int) -> list:
     img_array   = preprocess(file_bytes)
     preds       = model.predict(img_array, verbose=0)[0]
     top_indices = np.argsort(preds)[::-1][:top_k]
-    return [
-        {
+
+    results = []
+    for i in top_indices:
+        raw_label = CLASS_LABELS[int(i)]
+        log.info("Inference | idx=%d raw_label=%r conf=%.4f", int(i), raw_label, float(preds[i]))
+        parsed = parse_label(raw_label)
+        results.append({
             "confidence":     round(float(preds[i]), 6),
             "confidence_pct": f"{preds[i] * 100:.1f}%",
-            **parse_label(CLASS_LABELS[int(i)]),
-            "raw_label": CLASS_LABELS[int(i)],
-        }
-        for i in top_indices
-    ]
+            **parsed,
+            "raw_label": raw_label,
+        })
+    return results
 
 
 def validate_image(request_):
@@ -202,6 +243,7 @@ def health():
         "status":       "ok",
         "num_classes":  len(CLASS_LABELS),
         "groq_api_set": bool(GROQ_API_KEY),
+        "groq_model":   GROQ_MODEL,
     }), 200
 
 
@@ -225,6 +267,7 @@ def predict():
     try:
         results = run_inference(file_bytes, top_k)
     except Exception as e:
+        log.error("Inference error: %s", e)
         return jsonify({"error": f"Inference failed: {e}"}), 422
 
     return jsonify({
@@ -246,6 +289,7 @@ def analyze():
     try:
         results = run_inference(file_bytes, top_k)
     except Exception as e:
+        log.error("Inference error: %s", e)
         return jsonify({"error": f"Inference failed: {e}"}), 422
 
     top  = results[0]
