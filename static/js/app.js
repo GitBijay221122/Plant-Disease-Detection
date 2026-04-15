@@ -6,11 +6,11 @@ const API_BASE = window.location.origin;   // same origin; update if backend is 
 /* =====================================================
    STATE
    ===================================================== */
-let currentPage         = 'landing';
-let currentUser         = null;
-let selectedFile        = null;
+let currentPage          = 'landing';
+let currentUser          = null;
+let selectedFile         = null;
 let selectedImageDataURL = null;
-let historyData         = [];
+let historyData          = [];
 
 /* =====================================================
    SEVERITY HELPERS
@@ -18,10 +18,36 @@ let historyData         = [];
 const SEVERITY_LABELS = ['None', 'Low', 'Moderate', 'Severe'];
 
 function severityFromConfidence(confidence, isHealthy) {
-  if (isHealthy) return 0;
+  if (isHealthy)       return 0;
   if (confidence >= 90) return 3;
   if (confidence >= 70) return 2;
   return 1;
+}
+
+/* =====================================================
+   LABEL HELPERS
+   Mirrors the Python parse_label logic so the frontend
+   can build a clean display name from the API response.
+   ===================================================== */
+
+/**
+ * Build a human-readable display name from prediction fields.
+ * - Healthy plant   → "Tomato (Healthy)"
+ * - Diseased plant  → "Tomato — Late Blight"
+ * - Fallback        → plant name only (never shows "Unknown")
+ */
+function buildDisplayName(plant, disease, isHealthy) {
+  const cleanPlant   = (plant   || '').trim();
+  const cleanDisease = (disease || '').trim();
+
+  if (isHealthy) return `${cleanPlant} (Healthy)`;
+
+  // Only append disease if it is meaningful
+  const skip = ['', 'unknown', 'healthy'];
+  if (cleanDisease && !skip.includes(cleanDisease.toLowerCase())) {
+    return `${cleanPlant} — ${cleanDisease}`;
+  }
+  return cleanPlant;
 }
 
 /* =====================================================
@@ -31,7 +57,7 @@ function initHistory() {
   historyData = JSON.parse(localStorage.getItem('leafscan_history') || '[]');
 }
 function saveHistory() {
-  try { localStorage.setItem('leafscan_history', JSON.stringify(historyData)); } catch(e) {}
+  try { localStorage.setItem('leafscan_history', JSON.stringify(historyData)); } catch (e) {}
 }
 
 /* =====================================================
@@ -44,7 +70,7 @@ function generateJWT(payload) {
   return `${header}.${body}.${sig}`;
 }
 function parseJWT(token) {
-  try { return JSON.parse(atob(token.split('.')[1])); } catch(e) { return null; }
+  try { return JSON.parse(atob(token.split('.')[1])); } catch (e) { return null; }
 }
 function isTokenValid() {
   const token = localStorage.getItem('leafscan_token');
@@ -92,8 +118,8 @@ function handleLogin() {
   const pw    = document.getElementById('loginPw').value;
   let valid   = true;
 
-  ['loginEmail','loginPw'].forEach(id => document.getElementById(id).classList.remove('error'));
-  ['loginEmailErr','loginPwErr'].forEach(id => document.getElementById(id).classList.remove('show'));
+  ['loginEmail', 'loginPw'].forEach(id => document.getElementById(id).classList.remove('error'));
+  ['loginEmailErr', 'loginPwErr'].forEach(id => document.getElementById(id).classList.remove('show'));
   document.getElementById('loginError').classList.remove('show');
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -135,14 +161,14 @@ function handleSignup() {
   const pw2   = document.getElementById('signupPw2').value;
   let valid   = true;
 
-  ['signupNameErr','signupEmailErr','signupPwErr','signupPw2Err'].forEach(id => document.getElementById(id).classList.remove('show'));
-  ['signupName','signupEmail','signupPw','signupPw2'].forEach(id => document.getElementById(id).classList.remove('error'));
+  ['signupNameErr', 'signupEmailErr', 'signupPwErr', 'signupPw2Err'].forEach(id => document.getElementById(id).classList.remove('show'));
+  ['signupName', 'signupEmail', 'signupPw', 'signupPw2'].forEach(id => document.getElementById(id).classList.remove('error'));
   document.getElementById('signupError').classList.remove('show');
 
-  if (!name)  { document.getElementById('signupName').classList.add('error');  document.getElementById('signupNameErr').classList.add('show');  valid=false; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('signupEmail').classList.add('error'); document.getElementById('signupEmailErr').classList.add('show'); valid=false; }
-  if (pw.length < 6) { document.getElementById('signupPw').classList.add('error');  document.getElementById('signupPwErr').classList.add('show');  valid=false; }
-  if (pw !== pw2)    { document.getElementById('signupPw2').classList.add('error'); document.getElementById('signupPw2Err').classList.add('show'); valid=false; }
+  if (!name)  { document.getElementById('signupName').classList.add('error');  document.getElementById('signupNameErr').classList.add('show');  valid = false; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('signupEmail').classList.add('error'); document.getElementById('signupEmailErr').classList.add('show'); valid = false; }
+  if (pw.length < 6) { document.getElementById('signupPw').classList.add('error');  document.getElementById('signupPwErr').classList.add('show');  valid = false; }
+  if (pw !== pw2)    { document.getElementById('signupPw2').classList.add('error'); document.getElementById('signupPw2Err').classList.add('show'); valid = false; }
   if (!valid) return;
 
   showLoader();
@@ -185,7 +211,7 @@ function onDrop(e) {
   if (file) processFile(file);
 }
 function processFile(file) {
-  if (!['image/jpeg','image/jpg','image/png','image/webp'].includes(file.type)) {
+  if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
     showToast('Only JPG, PNG and WEBP files are supported.', 'error'); return;
   }
   if (file.size > 10 * 1024 * 1024) {
@@ -196,7 +222,7 @@ function processFile(file) {
   reader.onload = (ev) => {
     selectedImageDataURL = ev.target.result;
     document.getElementById('previewImg').src = ev.target.result;
-    document.getElementById('imageName').textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('imageName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
     document.getElementById('uploadPrompt').style.display  = 'none';
     document.getElementById('uploadPreview').style.display = 'block';
     document.getElementById('uploadArea').classList.add('has-image');
@@ -249,7 +275,10 @@ async function analyzeImage() {
     const pred        = data.prediction;
     const confidence  = +(pred.confidence * 100).toFixed(1);
     const isHealthy   = pred.is_healthy;
-    const diseaseName = isHealthy ? pred.plant + ' (Healthy)' : pred.plant + ' — ' + pred.disease;
+
+    // ── FIXED: use buildDisplayName — never shows "Unknown" ──
+    const diseaseName = buildDisplayName(pred.plant, pred.disease, isHealthy);
+
     const severity    = severityFromConfidence(confidence, isHealthy);
     const status      = isHealthy ? 'Healthy' : 'Diseased';
     const timestamp   = Date.now();
@@ -288,15 +317,17 @@ async function analyzeImage() {
 function renderResultCard(record) {
   const { diseaseName, confidence, timestamp, status, severity } = record;
 
-  const sevDots = [1,2,3,4,5].map(i => {
+  const sevDots = [1, 2, 3, 4, 5].map(i => {
     let cls = '';
-    if (severity === 1) cls = i <= 2 ? 'active-low'  : '';
+    if (severity === 1)      cls = i <= 2 ? 'active-low'  : '';
     else if (severity === 2) cls = i <= 3 ? 'active-mid'  : '';
     else if (severity >= 3)  cls = 'active-high';
     return `<div class="severity-dot ${cls}"></div>`;
   }).join('');
 
-  const badgeClass = status === 'Healthy' ? 'badge-healthy' : (severity >= 3 ? 'badge-severe' : 'badge-diseased');
+  const badgeClass = status === 'Healthy'
+    ? 'badge-healthy'
+    : severity >= 3 ? 'badge-severe' : 'badge-diseased';
 
   const card = document.createElement('div');
   card.className = 'result-card';
@@ -340,7 +371,6 @@ function renderRecommendationCard(rec) {
   if (!rec || rec.error) {
     bodyHTML = `<div class="rec-error">⚠️ ${rec?.error || 'Could not load recommendations.'}</div>`;
   } else {
-    // Treatment
     if (rec.treatment) {
       bodyHTML += `
         <div class="treatment-section">
@@ -348,7 +378,6 @@ function renderRecommendationCard(rec) {
           <p class="treatment-desc">${rec.treatment}</p>
         </div>`;
     }
-    // Pesticides
     if (Array.isArray(rec.pesticides) && rec.pesticides.length) {
       bodyHTML += `
         <div class="treatment-section">
@@ -356,7 +385,6 @@ function renderRecommendationCard(rec) {
           <ul class="treatment-list">${rec.pesticides.map(p => `<li>${p}</li>`).join('')}</ul>
         </div>`;
     }
-    // Fertilizers
     if (Array.isArray(rec.fertilizers) && rec.fertilizers.length) {
       bodyHTML += `
         <div class="treatment-section">
@@ -364,7 +392,6 @@ function renderRecommendationCard(rec) {
           <ul class="treatment-list">${rec.fertilizers.map(f => `<li>${f}</li>`).join('')}</ul>
         </div>`;
     }
-    // Care tips
     if (Array.isArray(rec.care_tips) && rec.care_tips.length) {
       bodyHTML += `
         <div class="treatment-section">
@@ -398,8 +425,8 @@ function renderHistory() {
   const q      = (document.getElementById('historySearch')?.value || '').toLowerCase().trim();
   const sort   = document.getElementById('historySort')?.value || 'latest';
   let filtered = historyData.filter(h => !q || h.diseaseName.toLowerCase().includes(q));
-  if (sort === 'latest')     filtered.sort((a,b) => b.timestamp - a.timestamp);
-  if (sort === 'confidence') filtered.sort((a,b) => b.confidence - a.confidence);
+  if (sort === 'latest')     filtered.sort((a, b) => b.timestamp - a.timestamp);
+  if (sort === 'confidence') filtered.sort((a, b) => b.confidence - a.confidence);
 
   const grid = document.getElementById('historyGrid');
   grid.innerHTML = '';
@@ -416,16 +443,21 @@ function renderHistory() {
   filtered.forEach(item => {
     const card       = document.createElement('div');
     card.className   = 'history-card';
-    const badgeClass = item.status === 'Healthy' ? 'badge-healthy' : (item.severity >= 3 ? 'badge-severe' : 'badge-diseased');
+    const badgeClass = item.status === 'Healthy'
+      ? 'badge-healthy'
+      : item.severity >= 3 ? 'badge-severe' : 'badge-diseased';
     const thumbHtml  = item.imageDataURL
       ? `<img class="history-thumb" src="${item.imageDataURL}" alt="Plant" />`
       : `<div class="history-thumb-placeholder">🌱</div>`;
+
+    // Rebuild clean display name for any old records that still say "Unknown"
+    const displayName = buildDisplayName(item.plant, item.disease, item.status === 'Healthy');
 
     card.innerHTML = `
       ${thumbHtml}
       <div class="history-card-body">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div class="history-disease">${item.diseaseName}</div>
+          <div class="history-disease">${displayName}</div>
           <span class="badge ${badgeClass}">${item.status}</span>
         </div>
         <div class="history-conf">Confidence: <strong>${item.confidence}%</strong></div>
@@ -464,44 +496,57 @@ function downloadPDF(id) {
       const W = 210, margin = 18;
       let y = 0;
 
-      doc.setFillColor(22,101,52);
+      // Header banner
+      doc.setFillColor(22, 101, 52);
       doc.rect(0, 0, W, 30, 'F');
-      doc.setFontSize(20); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold');
+      doc.setFontSize(20); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold');
       doc.text('LeafScan – Plant Disease Report', margin, 19);
       y = 42;
 
-      doc.setTextColor(80,80,80); doc.setFontSize(10); doc.setFont('helvetica','normal');
-      doc.text('Generated: ' + formatDate(Date.now()), margin, y); y += 6;
-      doc.text('Analysis Date: '  + formatDate(record.timestamp), margin, y); y += 10;
+      // Meta info
+      doc.setTextColor(80, 80, 80); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.text('Generated: '     + formatDate(Date.now()),        margin, y); y += 6;
+      doc.text('Analysis Date: ' + formatDate(record.timestamp),  margin, y); y += 10;
 
-      doc.setDrawColor(200,200,200); doc.line(margin, y, W-margin, y); y += 8;
+      doc.setDrawColor(200, 200, 200); doc.line(margin, y, W - margin, y); y += 8;
 
-      doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.setTextColor(22,101,52);
-      doc.text(record.diseaseName, margin, y); y += 8;
+      // Clean display name — guaranteed no "Unknown"
+      const displayName = buildDisplayName(record.plant, record.disease, record.status === 'Healthy');
 
-      doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50);
-      doc.text('Status: ' + record.status + '  |  Confidence: ' + record.confidence + '%  |  Severity: ' + (SEVERITY_LABELS[record.severity] || 'None'), margin, y); y += 8;
+      doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(22, 101, 52);
+      doc.text(displayName, margin, y); y += 8;
 
-      doc.setFillColor(230,230,230); doc.rect(margin, y, 120, 5, 'F');
-      doc.setFillColor(22,101,52); doc.rect(margin, y, 120 * record.confidence / 100, 5, 'F');
+      doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50);
+      doc.text(
+        'Status: ' + record.status +
+        '  |  Confidence: ' + record.confidence + '%' +
+        '  |  Severity: ' + (SEVERITY_LABELS[record.severity] || 'None'),
+        margin, y
+      ); y += 8;
+
+      // Confidence bar
+      doc.setFillColor(230, 230, 230); doc.rect(margin, y, 120, 5, 'F');
+      doc.setFillColor(22, 101, 52);   doc.rect(margin, y, 120 * record.confidence / 100, 5, 'F');
       y += 14;
 
+      // Plant image
       if (record.imageDataURL) {
         try {
-          doc.setFont('helvetica','bold'); doc.setTextColor(30,30,30);
+          doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
           doc.text('Plant Image', margin, y); y += 4;
           doc.addImage(record.imageDataURL, 'JPEG', margin, y, 80, 60);
           y += 68;
-        } catch(imgErr) { /* skip */ }
+        } catch (imgErr) { /* skip if image fails */ }
       }
 
-      doc.setDrawColor(200,200,200); doc.line(margin, 280, W-margin, 280);
-      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(140,140,140);
+      // Footer
+      doc.setDrawColor(200, 200, 200); doc.line(margin, 280, W - margin, 280);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(140, 140, 140);
       doc.text('LeafScan Plant Disease Detection System  |  v1.0.0  |  For informational purposes only.', margin, 285);
 
-      doc.save(`leafscan-report-${new Date().toISOString().slice(0,10)}.pdf`);
+      doc.save(`leafscan-report-${new Date().toISOString().slice(0, 10)}.pdf`);
       showToast('PDF downloaded!', 'success');
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       showToast('Failed to generate PDF.', 'error');
     }
@@ -520,7 +565,8 @@ function loadProfile() {
   document.getElementById('sidebarEmail').textContent   = user.email || '–';
   document.getElementById('sidebarInitial').textContent = (user.name || 'A').charAt(0).toUpperCase();
   document.getElementById('sidebarSince').textContent   = 'Member since ' + (user.createdAt
-    ? new Date(user.createdAt).toLocaleDateString('en-US', { month:'long', year:'numeric' }) : '–');
+    ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : '–');
 }
 function saveProfile() {
   const name = document.getElementById('profileName').value.trim();
@@ -537,10 +583,10 @@ function changePassword() {
   const cur     = document.getElementById('curPw').value;
   const newPw   = document.getElementById('newPw').value;
   const confirm = document.getElementById('confirmNewPw').value;
-  if (!cur)           { showToast('Enter your current password.', 'error'); return; }
-  if (newPw.length<6) { showToast('New password must be at least 6 characters.', 'error'); return; }
+  if (!cur)              { showToast('Enter your current password.', 'error'); return; }
+  if (newPw.length < 6) { showToast('New password must be at least 6 characters.', 'error'); return; }
   if (newPw !== confirm) { showToast('Passwords do not match.', 'error'); return; }
-  ['curPw','newPw','confirmNewPw'].forEach(id => document.getElementById(id).value = '');
+  ['curPw', 'newPw', 'confirmNewPw'].forEach(id => document.getElementById(id).value = '');
   showToast('Password updated successfully!', 'success');
 }
 
@@ -558,7 +604,8 @@ document.addEventListener('click', (e) => {
    ===================================================== */
 function formatDate(ts) {
   return new Date(ts).toLocaleString('en-US', {
-    month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
 }
 function togglePw(inputId, btn) {
@@ -569,7 +616,7 @@ function togglePw(inputId, btn) {
 function showLoader() { document.getElementById('loader').classList.add('show');    }
 function hideLoader() { document.getElementById('loader').classList.remove('show'); }
 function showToast(msg, type = 'info') {
-  const icons     = { success:'✅', error:'❌', info:'ℹ️' };
+  const icons     = { success: '✅', error: '❌', info: 'ℹ️' };
   const container = document.getElementById('toastContainer');
   const toast     = document.createElement('div');
   toast.className = `toast ${type}`;
