@@ -6,7 +6,11 @@
 <title>LeafScan – Plant Disease Detection</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<!-- [NEW] Feature styles — appended, no overrides -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features.css') }}" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- [NEW] Google Identity Services for Google login -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -26,15 +30,23 @@
       <span>LeafScan</span>
     </div>
     <div class="navbar-links">
-      <span class="nav-link" id="nav-dashboard" onclick="navigate('dashboard')">Dashboard</span>
-      <span class="nav-link" id="nav-history"   onclick="navigate('history')">History</span>
+      <span class="nav-link" id="nav-dashboard" onclick="navigate('dashboard')" data-i18n="nav_dashboard">Dashboard</span>
+      <span class="nav-link" id="nav-history"   onclick="navigate('history')"   data-i18n="nav_history">History</span>
     </div>
     <div class="navbar-right">
+      <!-- [NEW] Language Switcher -->
+      <div class="lang-switcher" id="langSwitcher">
+        <button class="lang-btn" onclick="toggleLangDropdown(event)" title="Language">
+          <span class="lang-globe">🌐</span>
+          <span id="langLabel">EN</span>
+        </button>
+        <div class="lang-dropdown" id="langDropdown"></div>
+      </div>
       <div class="profile-dropdown">
         <div class="profile-avatar" id="profileAvatar" onclick="toggleDropdown()">A</div>
         <div class="dropdown-menu" id="dropdownMenu">
-          <div class="dropdown-item" onclick="navigate('profile')">👤 Profile</div>
-          <div class="dropdown-item danger" onclick="logout()">🚪 Logout</div>
+          <div class="dropdown-item" onclick="navigate('profile')">👤 <span data-i18n="nav_profile">Profile</span></div>
+          <div class="dropdown-item danger" onclick="logout()">🚪 <span data-i18n="nav_logout">Logout</span></div>
         </div>
       </div>
     </div>
@@ -44,10 +56,12 @@
   </div>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
-  <span class="nav-link" onclick="navigate('dashboard');toggleMobileMenu()">Dashboard</span>
-  <span class="nav-link" onclick="navigate('history');toggleMobileMenu()">History</span>
-  <span class="nav-link" onclick="navigate('profile');toggleMobileMenu()">Profile</span>
-  <span class="nav-link" onclick="logout()" style="color:var(--red-500)">Logout</span>
+  <span class="nav-link" onclick="navigate('dashboard');toggleMobileMenu()" data-i18n="nav_dashboard">Dashboard</span>
+  <span class="nav-link" onclick="navigate('history');toggleMobileMenu()"   data-i18n="nav_history">History</span>
+  <span class="nav-link" onclick="navigate('profile');toggleMobileMenu()"   data-i18n="nav_profile">Profile</span>
+  <span class="nav-link" onclick="logout()" style="color:var(--red-500)"    data-i18n="nav_logout">Logout</span>
+  <!-- [NEW] Mobile language pills -->
+  <div class="mobile-lang-row" id="mobileLangRow"></div>
 </div>
 
 <!-- ============================================================
@@ -56,38 +70,38 @@
 <div id="page-landing" class="page">
   <div class="landing-hero">
     <div class="hero-inner">
-      <div class="hero-badge">🌿 AI-Powered Plant Health</div>
-      <h1 class="hero-title">Detect Plant Diseases<br/><em>Instantly & Accurately</em></h1>
-      <p class="hero-desc">
+      <div class="hero-badge" data-i18n="hero_badge">🌿 AI-Powered Plant Health</div>
+      <h1 class="hero-title" data-i18n="hero_title">Detect Plant Diseases<br/><em data-i18n="hero_title_em">Instantly & Accurately</em></h1>
+      <p class="hero-desc" data-i18n="hero_desc">
         Upload a photo of your plant and get instant AI-powered disease detection,
         severity analysis, and personalized treatment recommendations.
       </p>
       <div class="hero-actions">
-        <button class="btn btn-primary"   onclick="navigate('login')"  style="padding:13px 28px;font-size:15px">Login</button>
-        <button class="btn btn-secondary" onclick="navigate('signup')" style="padding:13px 28px;font-size:15px">Create Account</button>
+        <button class="btn btn-primary"   onclick="navigate('login')"  style="padding:13px 28px;font-size:15px" data-i18n="hero_login">Login</button>
+        <button class="btn btn-secondary" onclick="navigate('signup')" style="padding:13px 28px;font-size:15px" data-i18n="hero_signup">Create Account</button>
       </div>
     </div>
   </div>
   <div class="hero-features">
     <div class="feature-card">
       <div class="feature-icon">🔬</div>
-      <h3>Instant Analysis</h3>
-      <p>Get real-time disease detection powered by advanced AI models in seconds.</p>
+      <h3 data-i18n="feat_instant_title">Instant Analysis</h3>
+      <p data-i18n="feat_instant_desc">Get real-time disease detection powered by advanced AI models in seconds.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">💊</div>
-      <h3>AI Recommendations</h3>
-      <p>Receive AI-generated treatment plans, pesticides, fertilizers and care tips.</p>
+      <h3 data-i18n="feat_ai_title">AI Recommendations</h3>
+      <p data-i18n="feat_ai_desc">Receive AI-generated treatment plans, pesticides, fertilizers and care tips.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📊</div>
-      <h3>History Tracking</h3>
-      <p>Monitor plant health over time with a detailed history and downloadable PDF reports.</p>
+      <h3 data-i18n="feat_hist_title">History Tracking</h3>
+      <p data-i18n="feat_hist_desc">Monitor plant health over time with a detailed history and downloadable PDF reports.</p>
     </div>
   </div>
   <div style="height:60px"></div>
   <footer class="footer">
-    <strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0
+    <strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v2.0.0
   </footer>
 </div>
 
@@ -100,25 +114,36 @@
       <div class="auth-logo-icon">🌿</div>
       <span class="auth-logo-text">LeafScan</span>
     </div>
-    <h2 class="auth-title">Welcome back</h2>
-    <p class="auth-subtitle">Sign in to continue to your dashboard</p>
+    <h2 class="auth-title"    data-i18n="login_welcome">Welcome back</h2>
+    <p class="auth-subtitle"  data-i18n="login_subtitle">Sign in to continue to your dashboard</p>
     <div class="auth-error-banner" id="loginError"></div>
     <div class="form-group">
-      <label class="form-label">Email address</label>
+      <label class="form-label" data-i18n="login_email">Email address</label>
       <input type="email" id="loginEmail" class="form-input" placeholder="you@example.com" />
       <span class="error-msg" id="loginEmailErr">Please enter a valid email.</span>
     </div>
     <div class="form-group">
-      <label class="form-label">Password</label>
+      <label class="form-label" data-i18n="login_pw">Password</label>
       <div class="input-wrapper">
         <input type="password" id="loginPw" class="form-input" placeholder="••••••••" />
         <span class="toggle-pw" onclick="togglePw('loginPw', this)">👁</span>
       </div>
       <span class="error-msg" id="loginPwErr">Password is required.</span>
     </div>
-    <button class="btn btn-primary" style="width:100%;padding:13px;margin-top:6px" onclick="handleLogin()">Sign In</button>
-    <div class="auth-footer">Don't have an account? <a onclick="navigate('signup')">Create one</a></div>
-    <div class="auth-footer" style="margin-top:8px"><a onclick="navigate('landing')" style="color:var(--muted)">← Back to home</a></div>
+    <button class="btn btn-primary" style="width:100%;padding:13px;margin-top:6px" onclick="handleLogin()" data-i18n="login_btn">Sign In</button>
+    <!-- [NEW] Divider + Google button -->
+    <div class="auth-divider"><span>or</span></div>
+    <button class="google-btn" onclick="triggerGoogleLogin()" data-i18n="login_google">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      <span data-i18n="login_google">Sign in with Google</span>
+    </button>
+    <div class="auth-footer">Don't have an account? <a onclick="navigate('signup')" data-i18n="login_create">Create one</a></div>
+    <div class="auth-footer" style="margin-top:8px"><a onclick="navigate('landing')" style="color:var(--muted)" data-i18n="login_back">← Back to home</a></div>
   </div>
 </div>
 
@@ -131,21 +156,21 @@
       <div class="auth-logo-icon">🌿</div>
       <span class="auth-logo-text">LeafScan</span>
     </div>
-    <h2 class="auth-title">Create account</h2>
-    <p class="auth-subtitle">Start detecting plant diseases today</p>
+    <h2 class="auth-title"   data-i18n="signup_title">Create account</h2>
+    <p class="auth-subtitle" data-i18n="signup_subtitle">Start detecting plant diseases today</p>
     <div class="auth-error-banner" id="signupError"></div>
     <div class="form-group">
-      <label class="form-label">Full name</label>
+      <label class="form-label" data-i18n="signup_name">Full name</label>
       <input type="text"     id="signupName"  class="form-input" placeholder="Jane Doe" />
       <span class="error-msg" id="signupNameErr">Name is required.</span>
     </div>
     <div class="form-group">
-      <label class="form-label">Email address</label>
+      <label class="form-label" data-i18n="signup_email">Email address</label>
       <input type="email"    id="signupEmail" class="form-input" placeholder="you@example.com" />
       <span class="error-msg" id="signupEmailErr">Please enter a valid email.</span>
     </div>
     <div class="form-group">
-      <label class="form-label">Password</label>
+      <label class="form-label" data-i18n="signup_pw">Password</label>
       <div class="input-wrapper">
         <input type="password" id="signupPw"  class="form-input" placeholder="••••••••" />
         <span class="toggle-pw" onclick="togglePw('signupPw', this)">👁</span>
@@ -153,15 +178,26 @@
       <span class="error-msg" id="signupPwErr">Password must be at least 6 characters.</span>
     </div>
     <div class="form-group">
-      <label class="form-label">Confirm password</label>
+      <label class="form-label" data-i18n="signup_pw2">Confirm password</label>
       <div class="input-wrapper">
         <input type="password" id="signupPw2" class="form-input" placeholder="••••••••" />
         <span class="toggle-pw" onclick="togglePw('signupPw2', this)">👁</span>
       </div>
       <span class="error-msg" id="signupPw2Err">Passwords do not match.</span>
     </div>
-    <button class="btn btn-primary" style="width:100%;padding:13px;margin-top:6px" onclick="handleSignup()">Create Account</button>
-    <div class="auth-footer">Already have an account? <a onclick="navigate('login')">Sign in</a></div>
+    <button class="btn btn-primary" style="width:100%;padding:13px;margin-top:6px" onclick="handleSignup()" data-i18n="signup_btn">Create Account</button>
+    <!-- [NEW] Google signup -->
+    <div class="auth-divider"><span>or</span></div>
+    <button class="google-btn" onclick="triggerGoogleLogin()" data-i18n="signup_google">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      <span data-i18n="signup_google">Sign up with Google</span>
+    </button>
+    <div class="auth-footer">Already have an account? <a onclick="navigate('login')" data-i18n="signup_signin">Sign in</a></div>
   </div>
 </div>
 
@@ -172,15 +208,15 @@
   <div class="main-content">
     <div class="container">
       <div class="page-header">
-        <h1>Dashboard</h1>
-        <p>Upload a plant image to detect diseases and get AI-powered treatment recommendations</p>
+        <h1 data-i18n="dash_title">Dashboard</h1>
+        <p data-i18n="dash_subtitle">Upload a plant image to detect diseases and get AI-powered treatment recommendations</p>
       </div>
       <div class="dashboard-grid">
         <!-- Upload -->
         <div>
           <div class="card" style="padding:0;overflow:hidden">
             <div style="padding:20px 24px;border-bottom:1px solid var(--border)">
-              <h2 style="font-size:15px;font-weight:700">Upload Plant Image</h2>
+              <h2 style="font-size:15px;font-weight:700" data-i18n="upload_title">Upload Plant Image</h2>
             </div>
             <div style="padding:20px 24px">
               <div class="upload-area" id="uploadArea"
@@ -190,9 +226,9 @@
                    ondrop="onDrop(event)">
                 <div id="uploadPrompt">
                   <div class="upload-icon">🌿</div>
-                  <h3>Drop your plant image here</h3>
-                  <p>Supports JPG, PNG, WEBP – Max 10MB</p>
-                  <button class="btn btn-secondary btn-sm" style="margin-top:14px" onclick="triggerFileInput(event)">Choose File</button>
+                  <h3 data-i18n="upload_drop">Drop your plant image here</h3>
+                  <p data-i18n="upload_sup">Supports JPG, PNG, WEBP – Max 10MB</p>
+                  <button class="btn btn-secondary btn-sm" style="margin-top:14px" onclick="triggerFileInput(event)" data-i18n="upload_choose">Choose File</button>
                 </div>
                 <div id="uploadPreview" style="display:none">
                   <div class="image-preview-wrap">
@@ -204,7 +240,7 @@
               </div>
               <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="onFileSelect(event)" />
               <div class="submit-area">
-                <button class="btn btn-primary" id="analyzeBtn" style="width:100%;padding:13px" disabled onclick="analyzeImage()">
+                <button class="btn btn-primary" id="analyzeBtn" style="width:100%;padding:13px" disabled onclick="analyzeImage()" data-i18n="analyze_btn">
                   🔬 Analyze Plant
                 </button>
               </div>
@@ -216,12 +252,12 @@
         <div class="result-section" id="resultSection">
           <div class="result-placeholder" id="resultPlaceholder">
             <div class="rp-icon">🔍</div>
-            <p>Upload an image and click<br/><strong>Analyze Plant</strong> to see results here.</p>
+            <p>Upload an image and click<br/><strong data-i18n="analyze_btn">Analyze Plant</strong> to see results here.</p>
           </div>
         </div>
       </div>
     </div>
-    <footer class="footer"><strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0</footer>
+    <footer class="footer"><strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v2.0.0</footer>
   </div>
 </div>
 
@@ -232,22 +268,22 @@
   <div class="main-content">
     <div class="container">
       <div class="page-header">
-        <h1>Detection History</h1>
-        <p>All your past plant disease analyses and reports</p>
+        <h1 data-i18n="hist_title">Detection History</h1>
+        <p data-i18n="hist_subtitle">All your past plant disease analyses and reports</p>
       </div>
       <div class="history-toolbar">
         <div class="search-input-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input class="search-input" type="text" id="historySearch" placeholder="Search by disease name…" oninput="renderHistory()" />
+          <input class="search-input" type="text" id="historySearch" data-i18n-ph="hist_search" placeholder="Search by disease name…" oninput="renderHistory()" />
         </div>
         <select class="sort-select" id="historySort" onchange="renderHistory()">
-          <option value="latest">Latest First</option>
-          <option value="confidence">Highest Confidence</option>
+          <option value="latest"     data-i18n="hist_latest">Latest First</option>
+          <option value="confidence" data-i18n="hist_conf">Highest Confidence</option>
         </select>
       </div>
       <div class="history-grid" id="historyGrid"></div>
     </div>
-    <footer class="footer"><strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0</footer>
+    <footer class="footer"><strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v2.0.0</footer>
   </div>
 </div>
 
@@ -258,8 +294,8 @@
   <div class="main-content">
     <div class="container">
       <div class="page-header">
-        <h1>Profile</h1>
-        <p>Manage your account settings</p>
+        <h1 data-i18n="prof_title">Profile</h1>
+        <p data-i18n="prof_subtitle">Manage your account settings</p>
       </div>
       <div class="profile-grid">
         <div class="profile-sidebar">
@@ -268,44 +304,52 @@
           <div class="profile-email" id="sidebarEmail">–</div>
           <div class="profile-since" id="sidebarSince">Member since –</div>
           <div style="height:24px"></div>
-          <button class="btn btn-danger" style="width:100%" onclick="logout()">🚪 Logout</button>
+          <button class="btn btn-danger" style="width:100%" onclick="logout()">🚪 <span data-i18n="nav_logout">Logout</span></button>
         </div>
         <div class="profile-main">
           <div class="card">
-            <h2>Account Information</h2>
+            <h2 data-i18n="prof_acc_info">Account Information</h2>
             <div class="form-group">
-              <label class="form-label">Full Name</label>
+              <label class="form-label" data-i18n="prof_name">Full Name</label>
               <input type="text"  class="form-input" id="profileName" />
             </div>
             <div class="form-group">
-              <label class="form-label">Email Address</label>
+              <label class="form-label" data-i18n="prof_email">Email Address</label>
               <input type="email" class="form-input" id="profileEmail" readonly style="opacity:.65;cursor:not-allowed" />
             </div>
-            <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+            <button class="btn btn-primary" onclick="saveProfile()" data-i18n="prof_save">Save Changes</button>
           </div>
           <div class="card">
-            <h2>Change Password</h2>
+            <h2 data-i18n="prof_change_pw">Change Password</h2>
             <div class="form-group">
-              <label class="form-label">Current Password</label>
+              <label class="form-label" data-i18n="prof_cur_pw">Current Password</label>
               <input type="password" class="form-input" id="curPw" placeholder="••••••••" />
             </div>
             <div class="form-group">
-              <label class="form-label">New Password</label>
+              <label class="form-label" data-i18n="prof_new_pw">New Password</label>
               <input type="password" class="form-input" id="newPw" placeholder="••••••••" />
             </div>
             <div class="form-group">
-              <label class="form-label">Confirm New Password</label>
+              <label class="form-label" data-i18n="prof_confirm_pw">Confirm New Password</label>
               <input type="password" class="form-input" id="confirmNewPw" placeholder="••••••••" />
             </div>
-            <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+            <button class="btn btn-primary" onclick="changePassword()" data-i18n="prof_update_pw">Update Password</button>
           </div>
         </div>
       </div>
     </div>
-    <footer class="footer"><strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v1.0.0</footer>
+    <footer class="footer"><strong>LeafScan</strong> – Plant Disease Detection System &nbsp;·&nbsp; v2.0.0</footer>
   </div>
 </div>
 
+<!-- [NEW] Scripts: translations → audio/share → chatbot → app (order matters) -->
+<script src="{{ url_for('static', filename='js/translations.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio_share.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+<!-- [NEW] features.js — lang switcher + Google OAuth init + MongoDB auth hooks -->
+<script src="{{ url_for('static', filename='js/features.js') }}"></script>
+
 </body>
 </html>
