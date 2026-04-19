@@ -33,16 +33,12 @@ import re
 import json
 import io
 import logging
-<<<<<<< HEAD
-=======
+import base64
 import hashlib
 import hmac
-import base64
 import time
 from datetime import datetime, timezone
 from functools import wraps
-
->>>>>>> Bijay
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -67,7 +63,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-<<<<<<< HEAD
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH   = os.path.join(BASE_DIR, "plant_disease_model.h5")
@@ -76,16 +71,6 @@ IMG_SIZE     = (224, 224)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL   = "llama-3.3-70b-versatile"
-=======
-# ── Config ─────────────────────────────────────────────────────────────────────
-BASE_DIR          = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH        = os.path.join(BASE_DIR, "plant_disease_model.h5")
-LABELS_PATH       = os.path.join(BASE_DIR, "class_labels.json")
-IMG_SIZE          = (224, 224)
-GROQ_API_KEY      = os.environ.get("GROQ_API_KEY")
-GROQ_API_URL      = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL        = "llama-3.3-70b-versatile"
->>>>>>> Bijay
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MONGO_URI         = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 JWT_SECRET        = os.environ.get("JWT_SECRET", "leafscan_secret_change_in_production")
@@ -120,9 +105,8 @@ CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
 
-
 # ══════════════════════════════════════════════════════════════════════════════
-#  LABEL PARSING  (unchanged from original)
+#  LABEL PARSING
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _clean(text: str) -> str:
@@ -180,7 +164,7 @@ _self_test_parse_label()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  JWT UTILITIES  (simple HS256 without PyJWT dependency)
+#  JWT UTILITIES
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _b64url_encode(data: bytes) -> str:
@@ -258,7 +242,7 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ANALYSIS HELPERS  (unchanged from original)
+#  ANALYSIS HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
 def allowed_file(filename: str) -> bool:
@@ -270,45 +254,8 @@ def preprocess(file_bytes: bytes) -> np.ndarray:
     arr = np.array(img, dtype=np.float32) / 255.0
     return np.expand_dims(arr, 0)
 
-<<<<<<< HEAD
 
-def parse_label(raw: str) -> dict:
-    """
-    Handles both label formats:
-      - Triple underscore:  "Tomato___Late_blight"  → plant=Tomato, disease=Late blight
-      - Single underscore:  "Tomato_Late_blight"    → plant=Tomato, disease=Late blight
-      - Single word:        "Tomato"                → plant=Tomato, disease=Healthy (fallback)
-    """
-    if "___" in raw:
-        # Standard PlantVillage format
-        parts   = raw.split("___", 1)
-        plant   = parts[0].replace("_", " ").strip().title()
-        disease = parts[1].replace("_", " ").strip().title() if len(parts) > 1 else ""
-    else:
-        # Single-underscore format: first token = plant, rest = disease
-        tokens  = raw.split("_")
-        plant   = tokens[0].strip().title()
-        disease = " ".join(tokens[1:]).strip().title() if len(tokens) > 1 else ""
-
-    # Normalise empty / whitespace disease
-    if not disease:
-        disease = "Healthy"
-
-    is_healthy = "healthy" in disease.lower()
-
-    log.info("parse_label | raw=%r → plant=%r disease=%r healthy=%s", raw, plant, disease, is_healthy)
-
-    return {
-        "plant":      plant,
-        "disease":    disease,
-        "is_healthy": is_healthy,
-    }
-
-
-def get_recommendations(plant: str, disease: str, is_healthy: bool) -> dict:
-=======
 def get_recommendations(plant: str, disease: str, is_healthy: bool, lang: str = "en") -> dict:
->>>>>>> Bijay
     if not GROQ_API_KEY:
         return {"error": "GROQ_API_KEY not configured."}
 
@@ -323,14 +270,8 @@ def get_recommendations(plant: str, disease: str, is_healthy: bool, lang: str = 
 
     if is_healthy:
         prompt = f"""
-<<<<<<< HEAD
 The plant "{plant}" appears healthy. Provide advice to keep it that way.
 Respond ONLY with a valid JSON object — no markdown, no extra text.
-=======
-The plant "{plant}" appears healthy.
-Provide general preventive care recommendations.
-Respond ONLY with a valid JSON object — no markdown, no extra text.{lang_instruction}
->>>>>>> Bijay
 Use this exact structure:
 {{
   "treatment": "General preventive care advice",
@@ -381,27 +322,19 @@ Use this exact structure:
         resp = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
         resp.raise_for_status()
         raw_text = resp.json()["choices"][0]["message"]["content"].strip()
-<<<<<<< HEAD
 
         # Strip markdown fences if present
-=======
->>>>>>> Bijay
         if raw_text.startswith("```"):
             raw_text = raw_text.split("```")[1]
             if raw_text.startswith("json"):
                 raw_text = raw_text[4:]
-<<<<<<< HEAD
         raw_text = raw_text.strip()
 
         return json.loads(raw_text)
 
-=======
-        return json.loads(raw_text.strip())
->>>>>>> Bijay
     except requests.exceptions.Timeout:
         return {"error": "Groq API timed out."}
     except requests.exceptions.HTTPError as e:
-<<<<<<< HEAD
         status_code = e.response.status_code
         try:
             detail = e.response.json()
@@ -412,11 +345,6 @@ Use this exact structure:
     except json.JSONDecodeError as e:
         log.error("Groq JSON decode error: %s | raw_text=%r", e, raw_text)
         return {"error": "Could not parse Groq response as JSON."}
-=======
-        return {"error": f"Groq API error: {e.response.status_code}"}
-    except json.JSONDecodeError:
-        return {"error": "Could not parse Groq response."}
->>>>>>> Bijay
     except Exception as e:
         log.error("Unexpected Groq error: %s", e)
         return {"error": f"Unexpected error: {str(e)}"}
@@ -426,19 +354,12 @@ def run_inference(file_bytes: bytes, top_k: int) -> list:
     img_array   = preprocess(file_bytes)
     preds       = model.predict(img_array, verbose=0)[0]
     top_indices = np.argsort(preds)[::-1][:top_k]
-<<<<<<< HEAD
 
     results = []
     for i in top_indices:
         raw_label = CLASS_LABELS[int(i)]
         log.info("Inference | idx=%d raw_label=%r conf=%.4f", int(i), raw_label, float(preds[i]))
         parsed = parse_label(raw_label)
-=======
-    results = []
-    for i in top_indices:
-        raw_label = CLASS_LABELS[int(i)]
-        parsed    = parse_label(raw_label)
->>>>>>> Bijay
         results.append({
             "confidence":     round(float(preds[i]), 6),
             "confidence_pct": f"{preds[i] * 100:.1f}%",
@@ -460,7 +381,7 @@ def validate_image(request_):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  EXISTING ROUTES  (completely unchanged)
+#  EXISTING ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/", methods=["GET"])
@@ -475,10 +396,6 @@ def health():
         "num_classes":  len(CLASS_LABELS),
         "groq_api_set": bool(GROQ_API_KEY),
         "groq_model":   GROQ_MODEL,
-<<<<<<< HEAD
-=======
-        "mongodb":      db is not None,
->>>>>>> Bijay
     }), 200
 
 
@@ -531,7 +448,7 @@ def analyze():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  [NEW] AUTH ROUTES
+#  AUTH ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/auth/register", methods=["POST"])
@@ -600,7 +517,6 @@ def auth_login():
 
 @app.route("/auth/google", methods=["POST"])
 def auth_google():
-    """Verify Google ID token, create/login user in MongoDB."""
     if db is None:
         return jsonify({"error": "Database not available."}), 503
 
@@ -609,7 +525,6 @@ def auth_google():
     if not id_token:
         return jsonify({"error": "No Google credential provided."}), 400
 
-    # Verify token with Google's tokeninfo endpoint
     try:
         verify_resp = requests.get(
             f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
@@ -621,7 +536,6 @@ def auth_google():
         log.error("Google token verification failed: %s", e)
         return jsonify({"error": "Could not verify Google token."}), 401
 
-    # Validate audience if GOOGLE_CLIENT_ID is configured
     if GOOGLE_CLIENT_ID and google_payload.get("aud") != GOOGLE_CLIENT_ID:
         return jsonify({"error": "Token audience mismatch."}), 401
 
@@ -632,11 +546,9 @@ def auth_google():
     if not g_email:
         return jsonify({"error": "Could not extract email from Google token."}), 400
 
-    # Upsert user
     existing = db["users"].find_one({"email": g_email})
     if existing:
         user_id = str(existing["_id"])
-        # Update name/picture if changed
         db["users"].update_one({"_id": existing["_id"]}, {"$set": {"name": g_name, "picture": g_picture}})
     else:
         doc = {
@@ -678,7 +590,7 @@ def auth_me():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  [NEW] HISTORY ROUTES  (MongoDB-backed)
+#  HISTORY ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/history/save", methods=["POST"])
@@ -734,7 +646,7 @@ def history_delete(record_id):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  [NEW] CHATBOT ROUTE
+#  CHATBOT ROUTE
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/chat", methods=["POST"])
@@ -743,9 +655,9 @@ def chat():
         return jsonify({"reply": "Chatbot is not configured (GROQ_API_KEY missing)."}), 200
 
     data     = request.get_json(silent=True) or {}
-    messages = data.get("messages", [])  # [{role, content}, ...]
+    messages = data.get("messages", [])
     lang     = data.get("lang", "en")
-    context  = data.get("context")       # {plant, disease, isHealthy, confidence}
+    context  = data.get("context")
 
     lang_names = {
         "hi": "Hindi", "bn": "Bengali", "ta": "Tamil", "te": "Telugu",
@@ -774,9 +686,7 @@ def chat():
         f"{context_str}{lang_instruction}"
     )
 
-    # Limit conversation history to last 10 messages to avoid token overflow
     trimmed = messages[-10:] if len(messages) > 10 else messages
-
     groq_messages = [{"role": "system", "content": system_prompt}] + trimmed
 
     headers = {
